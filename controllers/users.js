@@ -24,8 +24,8 @@ const getUser = (req, res) => {
     })
     .catch((err) => {
       console.log(err);
-      if (err.name === 'DocumentNotFoundError') {
-        return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
+      if (err.name === 'CastError') {
+        return res.status(400).send({ message: 'Пользователь по указанному _id не найден.' });
       }
       return res.status(500).send({ message: 'На сервере произошла ошибка.' });
     });
