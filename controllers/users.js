@@ -1,49 +1,62 @@
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const NotFoundError = require('../errors/notFoundError');
+const BadRequestError = require('../errors/badRequestError');
+const NotAuthError = require('../errors/notAuthError');
+const ConflictError = require('../errors/conflictError');
+
+const { NODE_ENV, JWT_SECRET } = process.env;
 
 const getUsers = (req, res) => {
   User.find({})
     .then((users) => {
       res.status(200).send((users));
     })
-    .catch((users, err) => {
-      console.log(err);
-      if (users === null || undefined) {
-        return res.status(500).send({ message: 'Пользователи отсутсвуют.' });
-      }
-      return res.status(500).send({ message: 'На сервере произошла ошибка.' });
-    });
+    .catch((err) => {
+      res.send(err);
+    })
+    .catch(next);
 };
 
 const getUser = (req, res) => {
   User.findById(req.params.id)
     .then((user) => {
       if (user === null || undefined) {
-        return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
+        throw new NotFoundError('Пользователь по указанному _id не найден.');
       }
       return res.status(200).send({ data: user });
     })
     .catch((err) => {
       console.log(err);
       if (err.name === 'CastError') {
-        return res.status(400).send({ message: 'Пользователь по указанному _id не найден.' });
+        throw new BadRequestError('Пользователь по указанному _id не найден.');
       }
-      return res.status(500).send({ message: 'На сервере произошла ошибка.' });
-    });
+    })
+    .catch(next);
 };
 
 const addUser = (req, res) => {
-  const { name, about, avatar } = req.body;
-  User.create({ name, about, avatar })
+  bcrypt.hash(req.body.password, 10)
+    .then((hash) => User.create({
+      email: req.body.email,
+      password: hash,
+      name: req.body.name,
+      about: req.body.about,
+      avatar: req.body.avatar,
+    }))
     .then((user) => {
-      res.status(200).send((user));
+      res.status(200).send(user);
     })
     .catch((err) => {
-      console.log(err);
       if (err.name === 'ValidationError') {
-        return res.status(400).send({ message: 'Переданы некорректные данные при создании пользователя.' });
+        throw new BadRequestError(err.message);
       }
-      return res.status(500).send({ message: 'На сервере произошла ошибка.' });
-    });
+      if (err.code === 11000) {
+        throw new ConflictError(`Пользователь с таким email: ${req.body.email} существует`);
+      }
+    })
+    .catch(next);
 };
 
 const updateUser = (req, res) => {
@@ -58,10 +71,10 @@ const updateUser = (req, res) => {
     .catch((err) => {
       console.log(err);
       if (err.name === 'ValidationError') {
-        return res.status(400).send({ message: 'Переданы некорректные данные при обновлении профиля.' });
+        throw new BadRequestError('Переданы некорректные данные при обновлении профиля.');
       }
-      return res.status(500).send({ message: 'На сервере произошла ошибка.' });
-    });
+    })
+    .catch(next);
 };
 
 const updateAvatar = (req, res) => {
@@ -76,10 +89,29 @@ const updateAvatar = (req, res) => {
     .catch((err) => {
       console.log(err);
       if (err.name === 'ValidationError') {
-        return res.status(400).send({ message: 'Переданы некорректные данные при обновлении аватара.' });
+        throw new BadRequestError('Переданы некорректные данные при обновлении аватара.');
       }
-      return res.status(500).send({ message: 'На сервере произошла ошибка.' });
-    });
+    })
+    .catch(next);
+};
+
+const login = (req, res) => {
+  const { email } = req.body;
+
+  return User.findOne({ email }).select('+password')
+    .then((user) => {
+      const token = jwt.sign(
+        { _id: user._id },
+        NODE_ENV === 'production' ? JWT_SECRET : 'dev-secret',
+        { expiresIn: '7d' },
+      );
+
+      res.send({ token });
+    })
+    .catch((err) => {
+      throw new NotAuthError(err.message);
+    })
+    .catch(next);
 };
 
 module.exports = {
@@ -88,4 +120,5 @@ module.exports = {
   addUser,
   updateUser,
   updateAvatar,
+  login,
 };
