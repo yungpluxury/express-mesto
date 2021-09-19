@@ -18,6 +18,25 @@ const getUsers = (req, res, next) => {
     });
 };
 
+const getCurrentUser = (req, res, next) => {
+  const id = req.user._id;
+
+  User.findById(id)
+    .then((user) => {
+      res.status(200).send({
+        name: user.name,
+        about: user.about,
+        avatar: user.avatar,
+        _id: user._id,
+        email: user.email,
+      });
+    })
+    .catch((err) => {
+      res.send(err);
+    })
+    .catch(next);
+};
+
 const getUser = (req, res, next) => {
   User.findById(req.params.id)
     .then((user) => {
@@ -46,14 +65,20 @@ const addUser = (req, res, next) => {
       avatar: req.body.avatar,
     }))
     .then((user) => {
-      res.status(200).send(user);
+      res.status(200).send({
+        name: user.name,
+        about: user.about,
+        avatar: user.avatar,
+        _id: user._id,
+        email: user.email,
+      });
     })
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        throw new BadRequestError(err.message);
+        next(new BadRequestError(err.message));
       }
       if (err.code === 11000) {
-        throw new ConflictError(`Пользователь с таким email: ${req.body.email} существует`);
+        next(new ConflictError(`Пользователь с таким email: ${req.body.email} существует`));
       } else {
         next(err);
       }
@@ -75,7 +100,7 @@ const updateUser = (req, res, next) => {
     .catch((err) => {
       console.log(err);
       if (err.name === 'ValidationError') {
-        throw new BadRequestError('Переданы некорректные данные при обновлении профиля.');
+        next(new BadRequestError('Переданы некорректные данные при обновлении профиля.'));
       } else {
         next(err);
       }
@@ -97,7 +122,7 @@ const updateAvatar = (req, res, next) => {
     .catch((err) => {
       console.log(err);
       if (err.name === 'ValidationError') {
-        throw new BadRequestError('Переданы некорректные данные при обновлении аватара.');
+        next(new BadRequestError('Переданы некорректные данные при обновлении аватара.'));
       } else {
         next(err);
       }
@@ -105,26 +130,34 @@ const updateAvatar = (req, res, next) => {
 };
 
 const login = (req, res, next) => {
-  const { email } = req.body;
-
+  const { email, password } = req.body;
   return User.findOne({ email }).select('+password')
     .then((user) => {
-      const token = jwt.sign(
-        { _id: user._id },
-        NODE_ENV === 'production' ? JWT_SECRET : 'dev-secret',
-        { expiresIn: '7d' },
-      );
-
-      res.send({ token });
+      if (!user) {
+        throw new NotAuthError('Неверный логин или пароль.');
+      }
+      return bcrypt.compare(password, user.password)
+        .then((matched) => {
+          if (!matched) {
+            throw new NotAuthError('Неверный логин или пароль.');
+          }
+          const token = jwt.sign(
+            { _id: user._id },
+            NODE_ENV === 'production' ? JWT_SECRET : 'dev-secret',
+            { expiresIn: '7d' },
+          );
+          res.send({ token });
+        });
     })
-    .catch((err) => {
-      throw new NotAuthError(err.message);
+    .catch(() => {
+      next(new NotAuthError('Неверный логин или пароль.'));
     })
     .catch(next);
 };
 
 module.exports = {
   getUsers,
+  getCurrentUser,
   getUser,
   addUser,
   updateUser,
