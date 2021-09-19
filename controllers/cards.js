@@ -3,21 +3,15 @@ const NotFoundError = require('../errors/notFoundError');
 const BadRequestError = require('../errors/badRequestError');
 const ForbiddenError = require('../errors/forbiddenError');
 
-const getCards = (req, res) => {
+const getCards = (req, res, next) => {
   Card.find({})
     .then((cards) => {
       res.status(200).send((cards));
     })
-    .catch((cards, err) => {
-      console.log(err);
-      if (!cards) {
-        throw new NotFoundError('Карточки не найдены');
-      }
-    })
     .catch(next);
 };
 
-const addCard = (req, res) => {
+const addCard = (req, res, next) => {
   const { name, link } = req.body;
   Card.create({ name, link, owner: req.user._id })
     .then((card) => {
@@ -27,9 +21,10 @@ const addCard = (req, res) => {
       console.log(err);
       if (err.name === 'ValidationError') {
         throw new BadRequestError('Переданы некорректные данные при создании карточки.');
+      } else {
+        next(err);
       }
-    })
-    .catch(next);
+    });
 };
 
 const deleteCard = (req, res, next) => {
@@ -52,14 +47,14 @@ const deleteCard = (req, res, next) => {
     .catch(next);
 };
 
-const likeCard = (req, res) => {
+const likeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $addToSet: { likes: req.user._id } },
     { new: true },
   )
     .then((card) => {
-      if (card === null || undefined) {
+      if (!card) {
         throw new NotFoundError('Карточка с указанным _id не найдена.');
       }
       return res.status(200).send((card));
@@ -68,19 +63,20 @@ const likeCard = (req, res) => {
       console.log(err);
       if (err.name === 'CastError') {
         throw new BadRequestError('Переданы некорректные данные для постановки лайка.');
+      } else {
+        next(err);
       }
-    })
-    .catch(next);
+    });
 };
 
-const dislikeCard = (req, res) => {
+const dislikeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $pull: { likes: req.user._id } },
     { new: true },
   )
     .then((card) => {
-      if (card === null || undefined) {
+      if (!card) {
         throw new NotFoundError('Карточка с указанным _id не найдена.');
       }
       return res.status(200).send((card));
@@ -89,9 +85,10 @@ const dislikeCard = (req, res) => {
       console.log(err);
       if (err.name === 'CastError') {
         throw new BadRequestError('Переданы некорректные данные для снятия лайка.');
+      } else {
+        next(err);
       }
-    })
-    .catch(next);
+    });
 };
 
 module.exports = {
