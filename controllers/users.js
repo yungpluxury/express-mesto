@@ -23,6 +23,9 @@ const getCurrentUser = (req, res, next) => {
 
   User.findById(id)
     .then((user) => {
+      if (!user) {
+        throw new NotFoundError('Пользователь по указанному _id не найден.');
+      }
       res.status(200).send({
         name: user.name,
         about: user.about,
@@ -30,9 +33,6 @@ const getCurrentUser = (req, res, next) => {
         _id: user._id,
         email: user.email,
       });
-    })
-    .catch((err) => {
-      res.send(err);
     })
     .catch(next);
 };
@@ -48,7 +48,7 @@ const getUser = (req, res, next) => {
     .catch((err) => {
       console.log(err);
       if (err.name === 'CastError') {
-        throw new BadRequestError('Пользователь по указанному _id не найден.');
+        next(new BadRequestError('Пользователь по указанному _id не найден.'));
       } else {
         next(err);
       }
