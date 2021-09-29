@@ -7,6 +7,8 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const helmet = require('helmet');
 const { errors, celebrate, Joi } = require('celebrate');
+const cors = require('./middlewares/cors');
+const { requestLogger, errorLogger } = require('./middlewares/logger');
 const { addUser, login } = require('./controllers/users');
 const auth = require('./middlewares/auth');
 const cardsRoutes = require('./routes/cards');
@@ -21,6 +23,10 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(helmet());
+
+app.use(cors);
+
+app.use(requestLogger);
 
 app.post('/signin',
   celebrate({
@@ -52,6 +58,8 @@ app.use('/', usersRoutes);
 app.all('*', () => {
   throw new NotFoundError('Запрашиваемый ресурс не найден');
 });
+
+app.use(errorLogger);
 
 app.use(errors());
 
