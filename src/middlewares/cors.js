@@ -3,7 +3,8 @@ const DEFAULT_ALLOWED_METHODS = 'GET,HEAD,PUT,PATCH,POST,DELETE';
 
 // Массив доменов, с которых разрешены кросс-доменные запросы
 const allowedCors = [
-  "http://localhost:3000"
+  "http://localhost:3000",
+  "https://netlify--precious-profiterole-c14a08.netlify.app"
 ];
 
 // eslint-disable-next-line consistent-return
