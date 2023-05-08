@@ -3,7 +3,7 @@ const DEFAULT_ALLOWED_METHODS = 'GET,HEAD,PUT,PATCH,POST,DELETE';
 
 // Массив доменов, с которых разрешены кросс-доменные запросы
 const allowedCors = [
-  *
+  "*"
 ];
 
 // eslint-disable-next-line consistent-return

@@ -1,8 +1,9 @@
 const express = require('express');
+const serverless = require("serverless-http");
 
 require('dotenv').config();
 
-const { PORT = 3000 } = process.env;
+const { DB } = process.env;
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const helmet = require('helmet');
@@ -17,7 +18,7 @@ const NotFoundError = require('./errors/notFoundError');
 
 const app = express();
 
-mongoose.connect('mongodb://localhost:27017/mestodb');
+mongoose.connect(DB);
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -28,7 +29,7 @@ app.use(cors);
 
 app.use(requestLogger);
 
-app.post('/signin',
+app.post('/.netlify/functions/api/signin',
   celebrate({
     body: Joi.object().keys({
       email: Joi.string().required().email(),
@@ -36,7 +37,7 @@ app.post('/signin',
     }),
   }),
   login);
-app.post('/signup',
+app.post('/.netlify/functions/api/signup',
   celebrate({
     body: Joi.object().keys({
       email: Joi.string().required().email(),
@@ -52,8 +53,8 @@ app.post('/signup',
 
 app.use(auth);
 
-app.use('/', cardsRoutes);
-app.use('/', usersRoutes);
+app.use('/.netlify/functions/api', cardsRoutes);
+app.use('/.netlify/functions/api', usersRoutes);
 
 app.all('*', () => {
   throw new NotFoundError('Запрашиваемый ресурс не найден');
@@ -73,6 +74,6 @@ app.use((err, req, res, next) => {
   next();
 });
 
-app.listen(PORT, () => {
-  console.log(`App listening on port ${PORT}`);
-});
+
+module.exports = app;
+module.exports.handler = serverless(app);
